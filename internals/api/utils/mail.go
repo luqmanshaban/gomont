@@ -1,27 +1,17 @@
-package handlers
+package utils
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/http"
-
 	"github.com/luqmanshaban/gomont/internals/config"
 	"gopkg.in/mail.v2"
 )
-
-func WriteJson(w http.ResponseWriter, status int, data any) {
-	w.WriteHeader(status)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
-}
 
 func SendEmail(cfg *config.Config, to string, code int) error {
 	from := cfg.EMAIL_USER
 	password := cfg.EMAIL_PASS // Use an App Password for Gmail
 	smtpHost := cfg.EMAIL_HOST
 	smtpPort := cfg.EMAIL_PORT
-	println(smtpPort)
 	// receivers := []string{to}
 
 	msg := mail.NewMessage()

@@ -22,11 +22,18 @@ func NewServer(cfg *config.Config, hs *store.HealthStore, us *store.UserStore) *
 	// initiating handlers
 	healthH := &handlers.HealthHandler{Store: hs}
 	userH := &handlers.UserHandler{Store: us, Cfg: cfg}
+	
+	// auth middleware
+	auth := handlers.AuthMiddleware(cfg.JWT_SECRET)
 
 	mux.HandleFunc("GET /health", healthH.CheckDBStatus)
 
-	// users
+	// auth
 	mux.HandleFunc("POST /auth",userH.CreateUser)
+	mux.HandleFunc("POST /auth/login",userH.VerifyLogin)
+
+	//users
+	mux.Handle("GET /users", auth(http.HandlerFunc(userH.GetUser)))
 
 	s := &Server{
 		cfg: cfg,
