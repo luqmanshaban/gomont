@@ -34,6 +34,8 @@ func NewServer(cfg *config.Config, hs *store.HealthStore, us *store.UserStore) *
 
 	//users
 	mux.Handle("GET /users", auth(http.HandlerFunc(userH.GetUser)))
+	mux.Handle("PATCH /users", auth(http.HandlerFunc(userH.UpdateUserNames)))
+	mux.Handle("DELETE /users", auth(http.HandlerFunc(userH.DeleteUserById)))
 
 	s := &Server{
 		cfg: cfg,

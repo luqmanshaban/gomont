@@ -12,7 +12,6 @@ import (
 	"github.com/luqmanshaban/gomont/internals/store"
 )
 
-
 type UserHandler struct {
 	Store *store.UserStore
 	Cfg   *config.Config
@@ -75,8 +74,6 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJson(w, http.StatusOK, map[string]any{"message": "check your inbox for next steps"})
 }
 
-// internals/api/handlers/user.go
-
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	// 1. Extract the claims from the context injected by AuthMiddleware
 	claims, ok := r.Context().Value(UserClaimsContextKey).(*utils.CustomClaims)
@@ -98,7 +95,7 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3. Scrub or format any sensitive data if needed before returning 
+	// 3. Scrub or format any sensitive data if needed before returning
 	// For example, returning a safe response structure:
 	response := map[string]any{
 		"id":         user.ID,
@@ -110,7 +107,6 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	// 4. Return the data to the client
 	utils.WriteJson(w, http.StatusOK, response)
 }
-
 
 // VerifyLogin handles checking the login OTP and returning a JWT token
 func (h *UserHandler) VerifyLogin(w http.ResponseWriter, r *http.Request) {
@@ -139,7 +135,7 @@ func (h *UserHandler) VerifyLogin(w http.ResponseWriter, r *http.Request) {
 			utils.WriteJson(w, http.StatusUnauthorized, map[string]string{"message": "invalid email or verification code"})
 			return
 		}
-		
+
 		// If you explicitly returned a "verification code expired" error from the store:
 		if err.Error() == "verification code expired" {
 			utils.WriteJson(w, http.StatusUnauthorized, map[string]string{"message": "your verification code has expired"})
@@ -163,5 +159,95 @@ func (h *UserHandler) VerifyLogin(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJson(w, http.StatusOK, map[string]string{
 		"token":   token,
 		"message": "login successful",
+	})
+}
+
+func (h *UserHandler) UpdateUserNames(w http.ResponseWriter, r *http.Request) {
+	claims, ok := r.Context().Value(UserClaimsContextKey).(*utils.CustomClaims)
+	if !ok {
+		slog.Error("failed to assert context claims to *utils.CustomClaims")
+		utils.WriteJson(w, http.StatusInternalServerError, map[string]string{"message": "internal authentication error"})
+		return
+	}
+
+	// check if user exists
+	exists, err := h.Store.IsUserExist(claims.Email)
+	if err != nil {
+		slog.Error("failed to Authenticate user", "email", claims.Email, "id", claims.ID, "error", err)
+		utils.WriteJson(w, http.StatusInternalServerError, map[string]string{"message": "internal authentication error"})
+		return
+	}
+
+	if !exists {
+		slog.Error("failed to Authenticate, user doesn't exist", "email", claims.Email, "id", claims.ID, "error", err)
+		utils.WriteJson(w, http.StatusUnauthorized, map[string]string{"message": "Account does not exist"})
+		return
+	}
+
+	// parse the body
+	var payload struct {
+		Names string `json:"names"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		slog.Error("failed to request body", "error", err)
+		utils.WriteJson(w, http.StatusBadRequest, map[string]string{"message": "invalid body"})
+		return
+	}
+
+	if payload.Names == "" {
+		utils.WriteJson(w, http.StatusBadRequest, map[string]string{"message": "names field is required | names cannot be empty"})
+		return
+	}
+
+	u, err := h.Store.UpdateUserById(claims.ID, payload.Names)
+	if err != nil {
+		slog.Error("failed to update user names", "id", claims.ID, "error", err)
+		utils.WriteJson(w, http.StatusInternalServerError, map[string]string{"message": "failed to update user names"})
+		return 
+	}
+
+	
+	utils.WriteJson(w, http.StatusOK, map[string]any {
+		"id": u.ID,
+		"email": u.Email,
+		"names": u.Names,
+		"created_at": u.CreatedAt,
+	})
+}
+
+func (h *UserHandler) DeleteUserById(w http.ResponseWriter, r *http.Request) {
+	claims, ok := r.Context().Value(UserClaimsContextKey).(*utils.CustomClaims)
+	if !ok {
+		slog.Error("failed to assert context claims to *utils.CustomClaims")
+		utils.WriteJson(w, http.StatusInternalServerError, map[string]string{"message": "internal authentication error"})
+		return
+	}
+
+	// check if user exists
+	exists, err := h.Store.IsUserExist(claims.Email)
+	if err != nil {
+		slog.Error("failed to Authenticate user", "email", claims.Email, "id", claims.ID, "error", err)
+		utils.WriteJson(w, http.StatusInternalServerError, map[string]string{"message": "internal authentication error"})
+		return
+	}
+
+	if !exists {
+		slog.Error("failed to Authenticate, user doesn't exist", "email", claims.Email, "id", claims.ID, "error", err)
+		utils.WriteJson(w, http.StatusUnauthorized, map[string]string{"message": "Account does not exist"})
+		return
+	}
+
+	deleted, err := h.Store.DeleteUserById(claims.ID)
+	if err != nil {
+		slog.Error("failed to delete user", "id", claims.ID, "error", err)
+		utils.WriteJson(w, http.StatusInternalServerError, map[string]string{"message": "failed to delete user"})
+		return 
+	}
+
+	
+	utils.WriteJson(w, http.StatusOK, map[string]any {
+		"message": "user deleted",
+		"deleted": deleted,
 	})
 }
