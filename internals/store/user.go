@@ -124,6 +124,10 @@ func (u *UserStore) IsUserExist(email string) (bool, error) {
 	query := "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)"
 	err := u.DB.QueryRow(query, email).Scan(&exists)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			slog.Error("user does not exist")
+			return false, nil
+		}
 		slog.Error("failed to check if user exists", "email", email, "error", err)
 		return false, err
 	}

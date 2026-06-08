@@ -16,12 +16,13 @@ type Server struct {
 	httpServer *http.Server
 }
 
-func NewServer(cfg *config.Config, hs *store.HealthStore, us *store.UserStore) *Server {
+func NewServer(cfg *config.Config, hs *store.HealthStore, us *store.UserStore, ns *store.NotificationStore) *Server {
 	mux := http.NewServeMux()
 
 	// initiating handlers
 	healthH := &handlers.HealthHandler{Store: hs}
 	userH := &handlers.UserHandler{Store: us, Cfg: cfg}
+	notificationH := &handlers.NotificationChannelHandler{Store: ns}
 	
 	// auth middleware
 	auth := handlers.AuthMiddleware(cfg.JWT_SECRET)
@@ -36,6 +37,13 @@ func NewServer(cfg *config.Config, hs *store.HealthStore, us *store.UserStore) *
 	mux.Handle("GET /users", auth(http.HandlerFunc(userH.GetUser)))
 	mux.Handle("PATCH /users", auth(http.HandlerFunc(userH.UpdateUserNames)))
 	mux.Handle("DELETE /users", auth(http.HandlerFunc(userH.DeleteUserById)))
+
+	// notification channels
+	mux.Handle("GET /notifications/channels", auth(http.HandlerFunc(notificationH.GetNotificationChannelsByUserId)))
+	mux.Handle("GET /notifications/channels/{row_id}", auth(http.HandlerFunc(notificationH.GetNotificationChannelsById)))
+	mux.Handle("POST /notifications/channels/{row_id}", auth(http.HandlerFunc(notificationH.AddNotificationChannels)))
+	mux.Handle("PATCH /notifications/channels/{row_id}", auth(http.HandlerFunc(notificationH.UpdateNotificationChannels)))
+	mux.Handle("DELETE /notifications/channels/{row_id}", auth(http.HandlerFunc(notificationH.DeleteNotificationChannels)))
 
 	s := &Server{
 		cfg: cfg,
