@@ -21,9 +21,11 @@ func main() {
 
 	healthStore := store.NewHealthStore(db)
 	userStore := store.NewUserStore(db)
-    notificationStore := store.NewNotificationStore(db)
+    notificationChannelStore := store.NewNotificationChannelStore(db)
+    // notificationStore := store.NewNotificationStore(db)
+    urlStore := store.NewURLStore(db)
 
-	srv := api.NewServer(cfg, healthStore, userStore, notificationStore)
+	srv := api.NewServer(cfg, healthStore, userStore, notificationChannelStore, urlStore)
 	srv.Start()
 	// graceful shutdown
 	quit := make(chan os.Signal, 1)

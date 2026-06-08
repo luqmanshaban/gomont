@@ -13,7 +13,7 @@ import (
 )
 
 type NotificationChannelHandler struct {
-	Store *store.NotificationStore
+	Store *store.NotificationChannelStore
 }
 
 func (h *NotificationChannelHandler) GetNotificationChannelsById(w http.ResponseWriter, r *http.Request) {

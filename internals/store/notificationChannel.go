@@ -9,16 +9,16 @@ import (
 	"github.com/luqmanshaban/gomont/internals/core"
 )
 
-type NotificationStore struct {
+type NotificationChannelStore struct {
 	DB *sql.DB
 }
 
-func NewNotificationStore(db *sql.DB) *NotificationStore {
-	return &NotificationStore{DB: db}
+func NewNotificationChannelStore(db *sql.DB) *NotificationChannelStore {
+	return &NotificationChannelStore{DB: db}
 }
 
 // AddEmail appends unique emails to the existing array
-func (s *NotificationStore) AddEmail(newEmails []string, rowID, userID int) (core.NotificationChannel, error) {
+func (s *NotificationChannelStore) AddEmail(newEmails []string, rowID, userID int) (core.NotificationChannel, error) {
 	var emailList core.NotificationChannel
 	// Using array_cat and set-logic to ensure uniqueness (requires pg 9.5+)
 	// Or simpler: array_append in a loop, but here is a batch approach:
@@ -42,7 +42,7 @@ func (s *NotificationStore) AddEmail(newEmails []string, rowID, userID int) (cor
 }
 
 // UpdateEmail searches for an old email in the array and replaces it with a new one
-func (s *NotificationStore) UpdateEmail(rowID int, oldEmail, newEmail string, userID int) (core.NotificationChannel, error) {
+func (s *NotificationChannelStore) UpdateEmail(rowID int, oldEmail, newEmail string, userID int) (core.NotificationChannel, error) {
 	var emailList core.NotificationChannel
 	query := `
 		UPDATE notification_channels
@@ -65,7 +65,7 @@ func (s *NotificationStore) UpdateEmail(rowID int, oldEmail, newEmail string, us
 }
 
 // DeleteEmail removes a specific string from the array
-func (s *NotificationStore) DeleteEmailFromChannel(rowID, userID int, emailToRemove string) (core.NotificationChannel,error) {
+func (s *NotificationChannelStore) DeleteEmailFromChannel(rowID, userID int, emailToRemove string) (core.NotificationChannel,error) {
 	var emailList core.NotificationChannel
 	// array_remove removes all occurrences of the element
 	query := `
@@ -89,7 +89,7 @@ func (s *NotificationStore) DeleteEmailFromChannel(rowID, userID int, emailToRem
 }
 
 // GetEmailsByUserID retrieves the email record for a specific user
-func (s *NotificationStore) GetEmailsByID(rowId, userId int) (core.NotificationChannel, error) {
+func (s *NotificationChannelStore) GetEmailsByID(rowId, userId int) (core.NotificationChannel, error) {
 	var emailList core.NotificationChannel
 	query := `SELECT id, user_id, emails, created_at FROM notification_channels WHERE id = $1 AND user_id = $2`
 
@@ -108,7 +108,7 @@ func (s *NotificationStore) GetEmailsByID(rowId, userId int) (core.NotificationC
 	}
 	return emailList, nil
 }
-func (s *NotificationStore) GetEmailsByUserID(userID int) (core.NotificationChannel, error) {
+func (s *NotificationChannelStore) GetEmailsByUserID(userID int) (core.NotificationChannel, error) {
 	var emailList core.NotificationChannel
 	query := `SELECT id, user_id, emails, created_at FROM notification_channels WHERE user_id = $1`
 
