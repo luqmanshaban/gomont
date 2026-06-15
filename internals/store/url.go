@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"time"
 
+	"github.com/lib/pq"
 	"github.com/luqmanshaban/gomont/internals/core"
 )
 
@@ -18,12 +20,13 @@ func NewURLStore(db *sql.DB) *URLStore {
 
 func (s *URLStore) AddNewEndpoint(userId int, endpoint string, interval int) (core.URL, error) {
 	var newUrl core.URL
+	runs_at := time.Now().Add(time.Duration(interval) * time.Minute)
 	query := `
-	INSERT INTO urls (user_id, endpoint, interval)
-	VALUES ($1, $2, $3)
+	INSERT INTO urls (user_id, endpoint, interval, runs_at)
+	VALUES ($1, $2, $3, $4)
 	RETURNING id, user_id, endpoint, is_healthy, max_retries, interval, created_at
 	`
-	err := s.DB.QueryRow(query, userId, endpoint, interval).Scan(
+	err := s.DB.QueryRow(query, userId, endpoint, interval, runs_at).Scan(
 		&newUrl.ID,
 		&newUrl.UserID,
 		&newUrl.Endpoint,
@@ -67,6 +70,28 @@ func (s *URLStore) UpdateURL(id, userId int, endpoint string, interval int) (cor
 	}
 
 	return updatedURL, nil
+}
+
+// updating url's health status
+func (s *URLStore) UpdateURLHealthStatusTrue(id, userId int, interval int) error {
+	runs_at := time.Now().Add(time.Duration(interval) * time.Minute)
+	query := `
+	    UPDATE urls
+		SET
+		runs_at = $1,
+		updated_at = NOW(),
+		is_healthy = true
+		WHERE id = $2 AND user_id = $3
+	`
+
+	_,err := s.DB.Exec(query, runs_at, id, userId)
+	if err != nil {
+		slog.Error("failed to update url status to 'healthy'", "id", id, "error", err)
+		return err
+	}
+
+	slog.Info("url status updated to 'healthy'", "id", id)
+	return nil
 }
 
 func (s *URLStore) DeleteURL(id, userId int) error {
@@ -156,4 +181,66 @@ func (s *URLStore) GetURLByID(id, userID int) (core.URL, error) {
 	}
 
 	return u, nil
+}
+
+func (s *URLStore) FetchURLsToPing() ([]core.URL, error) {
+	// 1. Begin transaction
+	tx, err := s.DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Always rollback if function exits before commit
+	defer tx.Rollback()
+
+	// 2. Query with locking
+	// FOR UPDATE SKIP LOCKED ensures other workers skip rows currently being processed
+	query := `
+		SELECT id, user_id, endpoint, is_healthy, max_retries, interval, created_at
+		FROM urls
+		WHERE runs_at <= NOW()
+		ORDER BY created_at DESC
+		LIMIT 50
+		FOR UPDATE SKIP LOCKED
+	`
+
+	rows, err := tx.Query(query)
+	if err != nil {
+		return nil, err
+	}
+
+	var urls []core.URL
+	var ids []int // Keep track to update their status to 'processing'
+
+	for rows.Next() {
+		var u core.URL
+		if err := rows.Scan(
+			&u.ID, &u.UserID, &u.Endpoint, &u.IsHealthy, 
+			&u.MaxRetries, &u.Interval, &u.CreatedAt,
+		); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		urls = append(urls, u)
+		ids = append(ids, u.ID)
+	}
+	rows.Close()
+
+	if len(ids) == 0 {
+		return urls, tx.Commit() // Nothing to update
+	}
+
+	// 3. Mark as 'processing' (or similar) so others don't pick it up
+	// This prevents race conditions where two workers ping the same URL simultaneously
+	_, err = tx.Exec(`
+		UPDATE urls 
+		SET last_checked = NOW() 
+		WHERE id = ANY($1)
+	`, pq.Array(ids))
+
+	if err != nil {
+		return nil, err
+	}
+
+	// 4. Commit transaction
+	return urls, tx.Commit()
 }

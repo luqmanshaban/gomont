@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS urls(
     notification_sent BOOLEAN NOT NULL default false,
     max_retries INT NOT NULL default 4,
     interval INT NOT NULL, 
+    runs_at TIMESTAMPTZ NOT NULL,
     retry_at TIMESTAMPTZ NULL,
+    last_checked TIMESTAMPTZ NULL,
     last_manual_retry_at TIMESTAMPTZ NULL,
     created_at TIMESTAMPTZ NOT NULL default NOW(),
     updated_at TIMESTAMPTZ NOT NULL default NOW()
