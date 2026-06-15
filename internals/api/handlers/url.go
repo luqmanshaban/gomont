@@ -206,7 +206,7 @@ func (h *URLHandler) DeleteURL(w http.ResponseWriter, r *http.Request) {
 	err = h.Store.DeleteURL(urlID, claims.ID)
 	if err != nil {
 		if err.Error() == "url record not found or unauthorized" {
-			utils.WriteJson(w, http.StatusNotFound, map[string]string{"message": "monitor not found or unauthorized"})
+			utils.WriteJson(w, http.StatusNotFound, map[string]string{"message": "url not found or unauthorized"})
 			return
 		}
 		slog.Error("failed to destroy endpoint row", "id", urlID, "error", err)
@@ -214,5 +214,5 @@ func (h *URLHandler) DeleteURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJson(w, http.StatusOK, map[string]string{"message": "monitor deleted successfully"})
+	utils.WriteJson(w, http.StatusOK, map[string]string{"message": "url deleted successfully"})
 }

@@ -6,30 +6,65 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/luqmanshaban/gomont/internals/api/utils"
+	"github.com/luqmanshaban/gomont/internals/config"
 	"github.com/luqmanshaban/gomont/internals/core"
 	"github.com/luqmanshaban/gomont/internals/store"
 )
 
 type Worker struct {
 	Store *store.URLStore
+	Cfg   *config.Config
 }
 
 func (w Worker) Worker(workerId int, jobs <-chan core.URL) {
-
 	for job := range jobs {
 		err := Ping(job.Endpoint)
 		if err != nil {
 			slog.Error("failed to ping url", "worker_id", workerId, "url", job.Endpoint, "error", err)
-			// TODO: Add exponential backoff / mark as unhealthy in DB here
+			_ = w.Retry(job, err)
 			continue
 		}
-		// update url status to healthy
+		
+		// Update url status to healthy
 		err = w.Store.UpdateURLHealthStatusTrue(job.ID, job.UserID, job.Interval)
 		if err != nil {
-			slog.Error("Error on worker component","worker_id", workerId, "error", err.Error())
-			panic(err)
+			slog.Error("Error updating health status in worker", "worker_id", workerId, "error", err.Error())
+			panic(err) // Panic if DB is entirely unreachable
 		}
 		slog.Info("successfully updated url status to healthy", "url", job.Endpoint)
+	}
+}
+
+func (w Worker) Retry(job core.URL, pingErr error) error {
+	if job.Retries >= job.MaxRetries {
+		// 1. Permanently update down status and stagger the next check time out by 30 mins
+		err := w.Store.UpdateURLHealthStatusFalse(job.ID, job.UserID)
+		if err != nil {
+			slog.Error("failed to update failure state", "url_id", job.ID, "error", err)
+			return err
+		}
+		
+		// 2. Strict Checklist Rule: Only dispatch notification if one hasn't been sent yet
+		if !job.NotifcationSent {
+			if err = utils.SendNotificationEmail(w.Cfg, job.UserEmail, job.Endpoint, pingErr.Error(), time.Now()); err != nil {
+				slog.Error("failed to send notification email", "url_id", job.ID, "error", err)
+				return err
+			}
+			slog.Warn("Outage alert notification dispatched to user", "url_id", job.ID)
+		} else {
+			slog.Info("Alert suppressed; notification already delivered for this outage cycle", "url_id", job.ID)
+		}
+		
+		return nil
+	} else {
+		// Increments retry values smoothly based on real database positions
+		if err := w.Store.RetryURLPinging(job.ID, job.Retries); err != nil {
+			slog.Error("failed to execute retry backoff sequence", "url_id", job.ID, "error", err)
+			return err
+		}
+		slog.Info("url scheduled for retry", "url_id", job.ID, "next_attempt", job.Retries+1, "max", job.MaxRetries)
+		return nil
 	}
 }
 
@@ -38,7 +73,7 @@ func Ping(url string) error {
 
 	res, err := client.Get(url)
 	if err != nil {
-		slog.Error("failed to ping url", "url", url, "error", err)
+		// FIXED: Removed slog.Error from here to prevent duplicate log pollution
 		return err
 	}
 	defer res.Body.Close()
@@ -47,5 +82,6 @@ func Ping(url string) error {
 		return nil
 	}
 
-	return fmt.Errorf("The endpoint returned an error status: ", res.StatusCode)
+	// FIXED: Added formatting verb %d
+	return fmt.Errorf("the endpoint returned an error status: %d", res.StatusCode)
 }

@@ -25,6 +25,7 @@ func main() {
 	db := store.ConnectToDb(cfg)
 	defer db.Close()
 
+
 	// Queue for holding urls 
 	jobCh := make(chan core.URL, 100)
 	
@@ -33,8 +34,15 @@ func main() {
 	notificationChannelStore := store.NewNotificationChannelStore(db)
 	urlStore := store.NewURLStore(db)
 
+	// handle stale urls
+	if err := urlStore.ResetStaleURLs(); err != nil {
+		slog.Error("failed to reset stale urls", "error", err)
+		panic(err)
+	}
+	
+	
 	// Worker pool 
-	pool := worker.NewPool(urlStore)
+	pool := worker.NewPool(urlStore, cfg)
 	wg := pool.Start(jobCh)
 
 	// Producer 
