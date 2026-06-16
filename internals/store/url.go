@@ -301,3 +301,31 @@ func (s *URLStore) ResetStaleURLs() error {
 	`)
 	return err
 }
+
+func (s *URLStore) ManuallyRetryURL(id, userID int) error {
+	query := `
+		UPDATE urls
+		SET 
+			status = 'pending',
+			retries = 0,
+			runs_at = NOW(),
+			last_manual_retry_at = NOW(),
+			updated_at = NOW()
+		WHERE id = $1 AND user_id = $2
+	`
+	res, err := s.DB.Exec(query, id, userID)
+	if err != nil {
+		slog.Error("failed to execute manual retry query", "url_id", id, "error", err)
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("url record not found or unauthorized")
+	}
+
+	return nil
+}

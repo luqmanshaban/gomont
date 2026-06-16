@@ -117,7 +117,7 @@ func (h *URLHandler) UpdateURL(w http.ResponseWriter, r *http.Request) {
 		"user_id":     updatedURL.UserID,
 		"endpoint":    updatedURL.Endpoint,
 		"isHealthy":   updatedURL.IsHealthy,
-		"interval": updatedURL.Interval,
+		"interval":    updatedURL.Interval,
 		"max_retries": updatedURL.MaxRetries,
 		"updated_at":  updatedURL.UpdatedAt,
 		"created_at":  updatedURL.CreatedAt,
@@ -180,7 +180,7 @@ func (h *URLHandler) GetURLById(w http.ResponseWriter, r *http.Request) {
 		"user_id":     urlItem.UserID,
 		"endpoint":    urlItem.Endpoint,
 		"isHealthy":   urlItem.IsHealthy,
-		"interval":   urlItem.Interval,
+		"interval":    urlItem.Interval,
 		"max_retries": urlItem.MaxRetries,
 		"updated_at":  urlItem.UpdatedAt,
 		"created_at":  urlItem.CreatedAt,
@@ -215,4 +215,43 @@ func (h *URLHandler) DeleteURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJson(w, http.StatusOK, map[string]string{"message": "url deleted successfully"})
+}
+
+// POST /urls/{id}/retry
+func (h *URLHandler) ManualRetry(w http.ResponseWriter, r *http.Request) {
+	claims, ok := r.Context().Value(UserClaimsContextKey).(*utils.CustomClaims)
+	if !ok {
+		slog.Error("failed to assert context claims to *utils.CustomClaims")
+		utils.WriteJson(w, http.StatusInternalServerError, map[string]string{"message": "internal authentication error"})
+		return
+	}
+
+	idStr := r.PathValue("url_id")
+	urlID, err := strconv.Atoi(idStr)
+	if err != nil || urlID <= 0 {
+		utils.WriteJson(w, http.StatusBadRequest, map[string]string{"message": "invalid or missing URL ID path parameter"})
+		return
+	}
+
+	_, err = h.Store.GetURLByID(urlID, claims.ID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			utils.WriteJson(w, http.StatusNotFound, map[string]string{"message": "url not found"})
+			return
+		}
+		utils.WriteJson(w, http.StatusInternalServerError, map[string]string{"message": "internal server error"})
+		return
+	}
+
+	// 3. Trigger manual override in store
+	err = h.Store.ManuallyRetryURL(urlID, claims.ID)
+	if err != nil {
+		slog.Error("manual retry handler failed", "url_id", urlID, "error", err)
+		utils.WriteJson(w, http.StatusInternalServerError, map[string]string{"message": "internal server error"})
+		return
+	}
+
+	utils.WriteJson(w, http.StatusOK, map[string]string{
+		"message": "Manual retry scheduled successfully. The URL will be checked shortly.",
+	})
 }

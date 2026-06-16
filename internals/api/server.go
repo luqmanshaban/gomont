@@ -58,6 +58,7 @@ func NewServer(
 	mux.Handle("GET /urls/{url_id}", auth(http.HandlerFunc(urlH.GetURLById)))
 	mux.Handle("PATCH /urls/{url_id}", auth(http.HandlerFunc(urlH.UpdateURL)))
 	mux.Handle("DELETE /urls/{url_id}", auth(http.HandlerFunc(urlH.DeleteURL)))
+	mux.Handle("POST /urls/{url_id}/retry", auth(http.HandlerFunc(urlH.ManualRetry)))
 
 	s := &Server{
 		cfg: cfg,
