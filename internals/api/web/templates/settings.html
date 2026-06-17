@@ -1,0 +1,71 @@
+{{define "extra_css"}}<link rel="stylesheet" href="/static/css/settings.css" />{{end}}
+
+{{define "body"}}
+<div class="shell">
+  {{template "navbar" .}}
+
+  <main>
+    <div class="container">
+      <div class="page-head" style="margin-top:2.5rem">
+        <div>
+          <h1>Settings</h1>
+          <p class="page-sub">Manage your profile and where alerts get sent.</p>
+        </div>
+      </div>
+
+      <!-- Profile -->
+      <section class="panel settings-section">
+        <div class="eyebrow">Profile</div>
+        <p class="settings-section-sub">Your display name and account details.</p>
+
+        <form id="profile-form" class="profile-form" novalidate>
+          <div class="field" id="names-field">
+            <label for="names">Display name</label>
+            <input type="text" id="names" name="names" placeholder="Your name" />
+          </div>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </form>
+
+        <div class="profile-meta">
+          <span>Email: <strong id="profile-email">&mdash;</strong></span>
+          <span>Joined: <strong id="profile-joined">&mdash;</strong></span>
+        </div>
+      </section>
+
+      <!-- Notification channel -->
+      <section class="panel settings-section">
+        <div class="eyebrow">Notification emails</div>
+        <p class="settings-section-sub">Alerts for down monitors are sent to every address below.</p>
+
+        <form id="email-add-form" class="email-add-form" novalidate>
+          <div class="field" id="new-email-field">
+            <input type="email" id="new-email" name="new-email" placeholder="ops-team@example.com" required />
+          </div>
+          <button type="submit" class="btn btn-accent">Add email</button>
+        </form>
+
+        <div class="email-list" id="email-list">
+          <p class="page-sub">Loading...</p>
+        </div>
+      </section>
+
+      <!-- Danger zone -->
+      <section class="panel danger-zone settings-section">
+        <div class="eyebrow">Danger zone</div>
+        <div class="danger-zone-row">
+          <div>
+            <h3 style="font-size:1.05rem;margin-bottom:0.3rem">Delete account</h3>
+            <p>Permanently removes your profile and every monitor you've configured. This cannot be undone.</p>
+          </div>
+          <button id="delete-account-btn" class="btn btn-danger">Delete account</button>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+{{end}}
+
+{{define "extra_js"}}
+<script src="/static/js/app.js"></script>
+<script src="/static/js/settings.js"></script>
+{{end}}

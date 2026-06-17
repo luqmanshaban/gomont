@@ -167,7 +167,7 @@ func (s *URLStore) DeleteURL(id, userId int) error {
 
 func (s *URLStore) GetURLsByUserID(userID int) ([]core.URL, error) {
 	query := `
-		SELECT id, user_id, endpoint, is_healthy, max_retries, interval, created_at
+		SELECT id, user_id, endpoint, is_healthy, max_retries, interval,updated_at, created_at
 		FROM urls
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -190,6 +190,7 @@ func (s *URLStore) GetURLsByUserID(userID int) ([]core.URL, error) {
 			&u.IsHealthy,
 			&u.MaxRetries,
 			&u.Interval,
+			&u.UpdatedAt,
 			&u.CreatedAt,
 		)
 		if err != nil {

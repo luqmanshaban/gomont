@@ -22,7 +22,7 @@ func NewServer(
 	us *store.UserStore,
 	nchs *store.NotificationChannelStore,
 	urlS *store.URLStore) *Server {
-		
+
 	mux := http.NewServeMux()
 
 	// initiating handlers
@@ -30,11 +30,20 @@ func NewServer(
 	userH := &handlers.UserHandler{Store: us, Cfg: cfg}
 	notificationChH := &handlers.NotificationChannelHandler{Store: nchs}
 	urlH := &handlers.URLHandler{Store: urlS}
+	// static handlers
+	pageH := handlers.NewPageHandler()
 
 	// auth middleware
 	auth := handlers.AuthMiddleware(cfg.JWT_SECRET)
 
 	mux.HandleFunc("GET /health", healthH.CheckDBStatus)
+
+	// static files
+	mux.HandleFunc("GET /login", pageH.Login)
+	mux.HandleFunc("GET /signup", pageH.Signup)
+	mux.HandleFunc("GET /dashboard", pageH.Dashboard)
+	mux.HandleFunc("GET /settings", pageH.Settings)
+	mux.Handle("GET /static/", http.StripPrefix("/static/", pageH.Static()))
 
 	// auth
 	mux.HandleFunc("POST /auth", userH.CreateUser)
@@ -52,7 +61,7 @@ func NewServer(
 	mux.Handle("PATCH /notifications/channels/{row_id}", auth(http.HandlerFunc(notificationChH.UpdateNotificationChannels)))
 	mux.Handle("DELETE /notifications/channels/{row_id}", auth(http.HandlerFunc(notificationChH.DeleteNotificationChannels)))
 
-	// urls 
+	// urls
 	mux.Handle("POST /urls", auth(http.HandlerFunc(urlH.AddNewEndpoint)))
 	mux.Handle("GET /urls", auth(http.HandlerFunc(urlH.GetURLsByUserId)))
 	mux.Handle("GET /urls/{url_id}", auth(http.HandlerFunc(urlH.GetURLById)))

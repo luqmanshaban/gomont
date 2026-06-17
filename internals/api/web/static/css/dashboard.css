@@ -1,0 +1,85 @@
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin: 2.5rem 0 2rem;
+  flex-wrap: wrap;
+}
+
+.page-head h1 {
+  font-size: 2.2rem;
+}
+
+.page-sub {
+  color: var(--ink-soft);
+  margin-top: 0.4rem;
+  font-size: 0.95rem;
+}
+
+.add-monitor-panel {
+  margin-bottom: 2.5rem;
+}
+
+.add-monitor-form {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.add-monitor-form .field {
+  margin-bottom: 0;
+}
+
+.monitor-list-panel {
+  margin-bottom: 2.5rem;
+}
+
+.monitor-list-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.monitor-count {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.empty-state svg {
+  color: var(--ink);
+  opacity: 0.4;
+  margin-bottom: 1rem;
+}
+
+.empty-state h3 {
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-row {
+  height: 56px;
+  background: linear-gradient(90deg, var(--paper) 25%, var(--border) 50%, var(--paper) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  margin-bottom: 0.5rem;
+}
+
+@keyframes shimmer {
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-row {
+    animation: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .add-monitor-form {
+    grid-template-columns: 1fr;
+  }
+}

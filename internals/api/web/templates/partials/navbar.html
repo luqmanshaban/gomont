@@ -1,0 +1,12 @@
+{{define "navbar"}}
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="/dashboard" class="wordmark">Gomont<span class="dot"></span></a>
+    <nav class="nav-links">
+      <a href="/dashboard" class="{{if eq .Active "dashboard"}}active{{end}}">Monitors</a>
+      <a href="/settings" class="{{if eq .Active "settings"}}active{{end}}">Settings</a>
+      <a href="#" id="logout-link">Log out</a>
+    </nav>
+  </div>
+</header>
+{{end}}

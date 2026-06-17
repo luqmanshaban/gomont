@@ -1,0 +1,101 @@
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  background: var(--paper);
+  position: relative;
+}
+
+.auth-card-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+}
+
+.auth-card {
+  position: relative;
+  z-index: 2;
+}
+
+.auth-card-frame {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--border-strong);
+  transform: translate(8px, 8px) rotate(-0.8deg);
+  z-index: 1;
+}
+
+.auth-back {
+  position: absolute;
+  top: 2rem;
+  left: 2rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.auth-back:hover {
+  color: var(--ink);
+}
+
+.auth-heading {
+  font-size: 1.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.auth-sub {
+  color: var(--ink-soft);
+  font-size: 0.94rem;
+  margin-bottom: 1.75rem;
+}
+
+.auth-sub strong {
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.auth-switch {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+
+.auth-switch a {
+  font-weight: 700;
+  border-bottom: 2px solid var(--accent);
+}
+
+.auth-doodle {
+  position: absolute;
+  color: var(--ink);
+  opacity: 0.5;
+}
+
+.auth-doodle.d1 {
+  top: -3rem;
+  right: -1rem;
+  width: 60px;
+}
+
+.auth-doodle.d2 {
+  bottom: -2.5rem;
+  left: -2.5rem;
+  width: 40px;
+}
+
+@media (max-width: 640px) {
+  .auth-back {
+    top: 1.25rem;
+    left: 1.25rem;
+  }
+  .auth-doodle {
+    display: none;
+  }
+}

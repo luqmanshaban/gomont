@@ -19,6 +19,7 @@ type Config struct {
 	EMAIL_HOST string
 	EMAIL_PORT int
 	JWT_SECRET string
+	APP_URL string
 }
 
 func LoadEnv() *Config {
@@ -36,6 +37,7 @@ func LoadEnv() *Config {
 		EMAIL_HOST: getEnv("EMAIL_HOST", ""),
 		EMAIL_PORT: getEnvAsInt("EMAIL_PORT", 587),
 		JWT_SECRET: getEnv("JWT_SECRET",""),
+		APP_URL: getEnv("APP_URL","http://localhost:"),
 	}
 }
 

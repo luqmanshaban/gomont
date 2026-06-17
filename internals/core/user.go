@@ -3,11 +3,11 @@ package core
 import "time"
 
 type User struct {
-	ID int 
-	Email string
-	Names string
-	VerificationCode int 
-	VerificationExpiry time.Time
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID                 int       `json:"id"`
+	Email              string    `json:"email"`
+	Names              string    `json:"names"`
+	VerificationCode   int       `json:"verification_code"`
+	VerificationExpiry time.Time `json:"verification_expiry"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
