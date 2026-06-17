@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -49,8 +50,8 @@ func getEnv(key, defaultVal string) string {
 }
 
 func getEnvAsInt(key string, defaultVal int) int {
-	valStr := getEnv(key, "")
-	if val, err := strconv.Atoi(valStr); err != nil {
+	valStr := strings.TrimSpace(getEnv(key, ""))
+	if val, err := strconv.Atoi(valStr); err == nil {
 		return val
 	}
 	return defaultVal

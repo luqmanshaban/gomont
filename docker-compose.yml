@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - gomont_pgdata:/var/lib/postgresql/data
+      # Postgres runs any .sql file here automatically on first init only
+      # (i.e. when the data volume is empty) — this loads your schema
+      # without a manual migration step.
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Inside the Docker network, the app reaches Postgres by service
+      # name, not localhost — override whatever DB_HOST is set to in
+      # your .env for local (non-Docker) use.
+      DB_HOST: db
+    ports:
+      - "${PORT:-8080}:${PORT:-8080}"
+
+volumes:
+  gomont_pgdata:

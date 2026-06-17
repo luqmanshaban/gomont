@@ -8,6 +8,7 @@ import (
 
 	"github.com/luqmanshaban/gomont/internals/api/handlers"
 	"github.com/luqmanshaban/gomont/internals/config"
+	"github.com/luqmanshaban/gomont/internals/sse"
 	"github.com/luqmanshaban/gomont/internals/store"
 )
 
@@ -21,7 +22,8 @@ func NewServer(
 	hs *store.HealthStore,
 	us *store.UserStore,
 	nchs *store.NotificationChannelStore,
-	urlS *store.URLStore) *Server {
+	urlS *store.URLStore,
+	broker *sse.Broker) *Server {
 
 	mux := http.NewServeMux()
 
@@ -30,6 +32,8 @@ func NewServer(
 	userH := &handlers.UserHandler{Store: us, Cfg: cfg}
 	notificationChH := &handlers.NotificationChannelHandler{Store: nchs}
 	urlH := &handlers.URLHandler{Store: urlS}
+	eventsH := &handlers.EventsHandler{Broker: broker, URLStore: urlS, JWTSecret: cfg.JWT_SECRET}
+
 	// static handlers
 	pageH := handlers.NewPageHandler()
 
@@ -44,6 +48,9 @@ func NewServer(
 	mux.HandleFunc("GET /dashboard", pageH.Dashboard)
 	mux.HandleFunc("GET /settings", pageH.Settings)
 	mux.Handle("GET /static/", http.StripPrefix("/static/", pageH.Static()))
+
+	// live updates (auth handled inside the handler via ?token=, since EventSource can't send an Authorization header — not wrapped in the auth middleware, which only checks that header)
+	mux.HandleFunc("GET /events", eventsH.Stream)
 
 	// auth
 	mux.HandleFunc("POST /auth", userH.CreateUser)

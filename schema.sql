@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     user_id  BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     notification_channels_id  BIGINT NOT NULL REFERENCES notification_channels(id),
     url_id BIGINT NOT NULL REFERENCES urls(id),
-    error_mesasge TEXT NULL,
+    error_message TEXT NULL,
     created_at TIMESTAMPTZ NOT NULL default NOW()
 );
 

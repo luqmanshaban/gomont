@@ -1,6 +1,7 @@
-// dashboard.js — monitor list, add form, retry/delete actions
+// dashboard.js — monitor list, add form, retry/delete actions, live updates
 (function () {
-  const { requireAuth, api, showToast, escapeHtml, timeAgo } = window.Gomont;
+  const { requireAuth, api, showToast, escapeHtml, timeAgo, getToken } =
+    window.Gomont;
 
   if (!requireAuth()) return; // redirects to /login if no token
 
@@ -13,6 +14,7 @@
   const logoutLink = document.getElementById("logout-link");
 
   let monitors = [];
+  let editingId = null; // tracks which row (if any) is mid-edit, so live updates don't clobber it
 
   function statusIcon(isUp) {
     return `<span class="status-badge ${isUp ? "up" : "down"}">
@@ -71,6 +73,54 @@
     }
   }
 
+  // ---- Live updates via Server-Sent Events ----
+  // One connection covers every monitor on this dashboard (see backend:
+  // internals/sse). EventSource handles reconnection automatically on
+  // dropped connections, so no manual retry loop is needed here.
+  function connectLiveUpdates() {
+    const token = getToken();
+    if (!token) return;
+
+    const source = new EventSource(
+      `/events?token=${encodeURIComponent(token)}`,
+    );
+
+    source.addEventListener("status_change", (e) => {
+      let payload;
+      try {
+        payload = JSON.parse(e.data);
+      } catch (_) {
+        return;
+      }
+
+      const id = payload.id;
+      const idx = monitors.findIndex((m) => String(m.id) === String(id));
+      if (idx === -1) return; // monitor not in current view (e.g. deleted since)
+
+      monitors[idx] = {
+        ...monitors[idx],
+        is_healthy: payload.is_healthy,
+        updated_at: payload.updated_at,
+      };
+
+      // Don't blow away a row the user is actively editing — re-rendering
+      // would replace their in-progress interval input with static text.
+      if (String(editingId) === String(id)) return;
+
+      render();
+    });
+
+    source.onerror = () => {
+      // EventSource retries automatically with backoff; nothing to do
+      // here besides letting it. If the token has expired, the server
+      // will keep returning 401 on each retry attempt and the browser
+      // will keep trying — acceptable for now since reloading the page
+      // (which re-checks requireAuth) is the natural recovery path.
+    };
+
+    return source;
+  }
+
   addForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     endpointField.classList.remove("field-error");
@@ -104,6 +154,9 @@
       endpointInput.value = "";
       intervalInput.value = "5";
       showToast("Monitor added.");
+      setTimeout(function () {
+        window.location.reload();
+      }, 3000); // 3000 milliseconds = 3 seconds
     } catch (err) {
       showToast(err.message, true);
     } finally {
@@ -121,6 +174,7 @@
     const row = btn.closest(".monitor-row");
 
     if (action === "edit") {
+      editingId = id;
       const metaEl = row.querySelector('[data-role="meta"]');
       const currentInterval = row.dataset.interval;
       metaEl.outerHTML = `
@@ -135,6 +189,7 @@
     }
 
     if (action === "cancel-edit") {
+      editingId = null;
       render();
       return;
     }
@@ -152,7 +207,10 @@
           method: "PATCH",
           body: JSON.stringify({ interval: newInterval }),
         });
-        monitors = monitors.map((m) => (String(m.id) === String(id) ? updated : m));
+        monitors = monitors.map((m) =>
+          String(m.id) === String(id) ? updated : m,
+        );
+        editingId = null;
         render();
         showToast("Monitor updated.");
       } catch (err) {
@@ -190,12 +248,17 @@
     }
   });
 
+  let liveSource = null;
+
   if (logoutLink) {
     logoutLink.addEventListener("click", (e) => {
       e.preventDefault();
+      if (liveSource) liveSource.close();
       window.Gomont.logout();
     });
   }
 
-  loadMonitors();
+  loadMonitors().then(() => {
+    liveSource = connectLiveUpdates();
+  });
 })();

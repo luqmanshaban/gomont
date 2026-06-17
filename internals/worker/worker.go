@@ -9,12 +9,14 @@ import (
 	"github.com/luqmanshaban/gomont/internals/api/utils"
 	"github.com/luqmanshaban/gomont/internals/config"
 	"github.com/luqmanshaban/gomont/internals/core"
+	"github.com/luqmanshaban/gomont/internals/sse"
 	"github.com/luqmanshaban/gomont/internals/store"
 )
 
 type Worker struct {
-	Store *store.URLStore
-	Cfg   *config.Config
+	Store  *store.URLStore
+	Cfg    *config.Config
+	Broker *sse.Broker
 }
 
 func (w Worker) Worker(workerId int, jobs <-chan core.URL) {
@@ -25,7 +27,7 @@ func (w Worker) Worker(workerId int, jobs <-chan core.URL) {
 			_ = w.Retry(job, err)
 			continue
 		}
-		
+
 		// Update url status to healthy
 		err = w.Store.UpdateURLHealthStatusTrue(job.ID, job.UserID, job.Interval)
 		if err != nil {
@@ -33,6 +35,23 @@ func (w Worker) Worker(workerId int, jobs <-chan core.URL) {
 			panic(err) // Panic if DB is entirely unreachable
 		}
 		slog.Info("successfully updated url status to healthy", "url", job.Endpoint)
+
+		// job.IsHealthy reflects status as of the producer's fetch, before
+		// this check ran. Only publish when the check actually changed the
+		// status (down -> healthy), not on every successful ping while
+		// already healthy — keeps the dashboard stream meaningful instead
+		// of noisy.
+		if !job.IsHealthy && w.Broker != nil {
+			w.Broker.Publish(sse.Event{
+				MonitorID: job.ID,
+				Name:      "status_change",
+				Data: map[string]any{
+					"id":         job.ID,
+					"is_healthy": true,
+					"updated_at": time.Now(),
+				},
+			})
+		}
 	}
 }
 
@@ -44,7 +63,23 @@ func (w Worker) Retry(job core.URL, pingErr error) error {
 			slog.Error("failed to update failure state", "url_id", job.ID, "error", err)
 			return err
 		}
-		
+
+		// job.IsHealthy reflects status before this terminal failure was
+		// recorded. Only publish on the actual healthy -> down transition,
+		// not on every exhausted-retries call (which would already be
+		// false on subsequent ping cycles while still down).
+		if job.IsHealthy && w.Broker != nil {
+			w.Broker.Publish(sse.Event{
+				MonitorID: job.ID,
+				Name:      "status_change",
+				Data: map[string]any{
+					"id":         job.ID,
+					"is_healthy": false,
+					"updated_at": time.Now(),
+				},
+			})
+		}
+
 		// 2. Strict Checklist Rule: Only dispatch notification if one hasn't been sent yet
 		if !job.NotifcationSent {
 			if err = utils.SendNotificationEmail(w.Cfg, job.UserEmail, job.Endpoint, pingErr.Error(), time.Now()); err != nil {
@@ -55,7 +90,7 @@ func (w Worker) Retry(job core.URL, pingErr error) error {
 		} else {
 			slog.Info("Alert suppressed; notification already delivered for this outage cycle", "url_id", job.ID)
 		}
-		
+
 		return nil
 	} else {
 		// Increments retry values smoothly based on real database positions
@@ -73,7 +108,6 @@ func Ping(url string) error {
 
 	res, err := client.Get(url)
 	if err != nil {
-		// FIXED: Removed slog.Error from here to prevent duplicate log pollution
 		return err
 	}
 	defer res.Body.Close()
@@ -82,6 +116,5 @@ func Ping(url string) error {
 		return nil
 	}
 
-	// FIXED: Added formatting verb %d
 	return fmt.Errorf("the endpoint returned an error status: %d", res.StatusCode)
 }

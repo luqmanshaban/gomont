@@ -21,10 +21,10 @@ func NewURLStore(db *sql.DB) *URLStore {
 
 func (s *URLStore) AddNewEndpoint(userId int, endpoint string, interval int) (core.URL, error) {
 	var newUrl core.URL
-	runs_at := time.Now().Add(time.Duration(interval) * time.Minute)
+	runs_at := time.Now().UTC().Add(1 * time.Second)
 	query := `
-	INSERT INTO urls (user_id, endpoint, interval, runs_at, status)
-	VALUES ($1, $2, $3, $4, 'pending')
+	INSERT INTO urls (user_id, endpoint, interval, runs_at, status, is_healthy)
+	VALUES ($1, $2, $3, $4, 'pending', true)
 	RETURNING id, user_id, endpoint, is_healthy, max_retries, interval, created_at
 	`
 	err := s.DB.QueryRow(query, userId, endpoint, interval, runs_at).Scan(
@@ -75,7 +75,7 @@ func (s *URLStore) UpdateURL(id, userId int, endpoint string, interval int) (cor
 
 // updating url's health status
 func (s *URLStore) UpdateURLHealthStatusTrue(id, userId int, interval int) error {
-	runs_at := time.Now().Add(time.Duration(interval) * time.Minute)
+	runs_at := time.Now().UTC().Add(time.Duration(interval) * time.Minute)
 	query := `
 	    UPDATE urls
 		SET
@@ -99,7 +99,7 @@ func (s *URLStore) UpdateURLHealthStatusTrue(id, userId int, interval int) error
 }
 
 func (s *URLStore) UpdateURLHealthStatusFalse(id, userId int) error {
-	runs_at := time.Now().UTC().Add(30 * time.Minute)
+	runs_at := time.Now().UTC().UTC().Add(30 * time.Minute)
 	query := `
 	    UPDATE urls
 		SET
@@ -127,7 +127,7 @@ func (r *URLStore) RetryURLPinging(id int, retries int) error {
 	backoff := time.Duration(10<<retries) * time.Second
 	jitter := time.Duration(rand.Intn(5)) * time.Second
 
-	nextRunAt := time.Now().Add(backoff + jitter)
+	nextRunAt := time.Now().UTC().Add(backoff + jitter)
 
 	_, err := r.DB.Exec(`
 		UPDATE urls

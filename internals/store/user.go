@@ -110,7 +110,7 @@ func (u *UserStore) DeleteUserById(id int) (bool, error) {
 
 func (u *UserStore) CreateUser(email string) (int, error) {
 	code := generateVerificationCode()
-	expt := time.Now().Add(15 * time.Minute)
+	expt := time.Now().UTC().Add(15 * time.Minute)
 
 	_, err := u.DB.Exec("INSERT INTO users (email, verification_code, verification_expiry) VALUES ($1, $2, $3)", email, code, expt)
 	if err != nil {
@@ -137,7 +137,7 @@ func (u *UserStore) IsUserExist(email string) (bool, error) {
 
 func (u *UserStore) LoginUser(email string) (int, error) {
 	code := generateVerificationCode()
-	expt := time.Now().Add(15 * time.Minute)
+	expt := time.Now().UTC().Add(15 * time.Minute)
 
 	res, err := u.DB.Exec("UPDATE users SET verification_code = $1, verification_expiry = $2 WHERE email = $3", code, expt, email)
 	if err != nil {
@@ -179,7 +179,7 @@ func (u *UserStore) IsUserLoginCodeValid(email string, code int) (*core.User, er
 	}
 
 	// 2. Check if the code has expired
-	if user.VerificationExpiry.Before(time.Now()) {
+	if user.VerificationExpiry.Before(time.Now().UTC()) {
 		slog.Warn("user login code has expired", "email", email, "expiry", user.VerificationExpiry)
 		return nil, fmt.Errorf("verification code expired")
 	}
