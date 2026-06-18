@@ -1,4 +1,6 @@
 # Gomont
+<img width="1140" height="781" alt="image" src="https://github.com/user-attachments/assets/364a92b6-28af-4559-8c88-6d710352eec5" />
+
 
 An open-source uptime monitor written in Go. Add the URLs you care about, get notified by email the moment one goes down, and watch status update live on a clean, dependency-light dashboard.
 
