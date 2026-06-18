@@ -14,7 +14,8 @@ import (
 )
 
 type Worker struct {
-	Store  *store.URLStore
+	URLStore  *store.URLStore
+	NotificationChannelStore *store.NotificationChannelStore
 	Cfg    *config.Config
 	Broker *sse.Broker
 }
@@ -29,7 +30,7 @@ func (w Worker) Worker(workerId int, jobs <-chan core.URL) {
 		}
 
 		// Update url status to healthy
-		err = w.Store.UpdateURLHealthStatusTrue(job.ID, job.UserID, job.Interval)
+		err = w.URLStore.UpdateURLHealthStatusTrue(job.ID, job.UserID, job.Interval)
 		if err != nil {
 			slog.Error("Error updating health status in worker", "worker_id", workerId, "error", err.Error())
 			panic(err) // Panic if DB is entirely unreachable
@@ -58,7 +59,7 @@ func (w Worker) Worker(workerId int, jobs <-chan core.URL) {
 func (w Worker) Retry(job core.URL, pingErr error) error {
 	if job.Retries >= job.MaxRetries {
 		// 1. Permanently update down status and stagger the next check time out by 30 mins
-		err := w.Store.UpdateURLHealthStatusFalse(job.ID, job.UserID)
+		err := w.URLStore.UpdateURLHealthStatusFalse(job.ID, job.UserID)
 		if err != nil {
 			slog.Error("failed to update failure state", "url_id", job.ID, "error", err)
 			return err
@@ -82,7 +83,12 @@ func (w Worker) Retry(job core.URL, pingErr error) error {
 
 		// 2. Strict Checklist Rule: Only dispatch notification if one hasn't been sent yet
 		if !job.NotifcationSent {
-			if err = utils.SendNotificationEmail(w.Cfg, job.UserEmail, job.Endpoint, pingErr.Error(), time.Now()); err != nil {
+			receipients, err := w.NotificationChannelStore.GetEmailsByUserID(job.UserID)
+			if err != nil {
+				slog.Error("failed to retrieve email recepients", "url_id", job.ID, "error", err)
+				return err
+			}
+			if err = utils.SendNotificationEmail(w.Cfg, receipients.Emails, job.Endpoint, pingErr.Error(), time.Now()); err != nil {
 				slog.Error("failed to send notification email", "url_id", job.ID, "error", err)
 				return err
 			}
@@ -94,7 +100,7 @@ func (w Worker) Retry(job core.URL, pingErr error) error {
 		return nil
 	} else {
 		// Increments retry values smoothly based on real database positions
-		if err := w.Store.RetryURLPinging(job.ID, job.Retries); err != nil {
+		if err := w.URLStore.RetryURLPinging(job.ID, job.Retries); err != nil {
 			slog.Error("failed to execute retry backoff sequence", "url_id", job.ID, "error", err)
 			return err
 		}

@@ -108,6 +108,7 @@ func (s *NotificationChannelStore) GetEmailsByID(rowId, userId int) (core.Notifi
 	}
 	return emailList, nil
 }
+
 func (s *NotificationChannelStore) GetEmailsByUserID(userID int) (core.NotificationChannel, error) {
 	var emailList core.NotificationChannel
 	query := `SELECT id, user_id, emails, created_at FROM notification_channels WHERE user_id = $1`

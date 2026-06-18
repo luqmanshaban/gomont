@@ -12,10 +12,6 @@ import (
 	"gopkg.in/mail.v2"
 )
 
-// renderHTML executes a parsed html/template against data and returns the
-// resulting string. html/template auto-escapes values inserted via {{.Field}},
-// so dynamic content (URLs, error strings) can never break the surrounding
-// markup or inject unexpected HTML.
 func renderHTML(name, tmplStr string, data any) (string, error) {
 	tmpl, err := htmlTemplate.New(name).Parse(tmplStr)
 	if err != nil {
@@ -28,8 +24,6 @@ func renderHTML(name, tmplStr string, data any) (string, error) {
 	return buf.String(), nil
 }
 
-// renderText executes a parsed text/template against data and returns the
-// resulting string. Used for the plaintext fallback part of each email.
 func renderText(name, tmplStr string, data any) (string, error) {
 	tmpl, err := textTemplate.New(name).Parse(tmplStr)
 	if err != nil {
@@ -42,23 +36,19 @@ func renderText(name, tmplStr string, data any) (string, error) {
 	return buf.String(), nil
 }
 
-// dashboardURL builds the link back to the app used in notification emails,
-// following the same host:port construction as the HTTP server itself.
 func dashboardURL(cfg *config.Config) string {
-	return fmt.Sprintf("%s%d/dashboard", cfg.APP_URL, cfg.PORT)
+	return fmt.Sprintf("%s/dashboard", cfg.APP_URL)
 }
 
-// send builds and dispatches a multipart (plaintext + HTML) message via the
-// configured SMTP dialer. Shared by SendEmail and SendNotificationEmail so
-// the dialer setup only lives in one place.
-func send(cfg *config.Config, to, subject, plainBody, htmlBody string) error {
+// send builds and dispatches a multipart (plaintext + HTML) message
+func send(cfg *config.Config, to []string, subject, plainBody, htmlBody string) error {
 	msg := mail.NewMessage()
 	msg.SetHeader("From", cfg.EMAIL_USER)
-	msg.SetHeader("To", to)
+	
+	// FIXED: Use the variadic spread operator (...) to expand the slice for the header safely
+	msg.SetHeader("To", to...) 
 	msg.SetHeader("Subject", subject)
 
-	// Plain text first, then the HTML alternative — mail.v2 requires this
-	// order so clients that can't render HTML fall back to plain text.
 	msg.SetBody("text/plain", plainBody)
 	msg.AddAlternative("text/html", htmlBody)
 
@@ -73,7 +63,7 @@ func send(cfg *config.Config, to, subject, plainBody, htmlBody string) error {
 	return nil
 }
 
-// SendEmail sends the OTP verification code used for both signup and login.
+// SendEmail handles single recipient OTP delivery
 func SendEmail(cfg *config.Config, to string, code int) error {
 	data := struct{ Code int }{Code: code}
 
@@ -86,11 +76,12 @@ func SendEmail(cfg *config.Config, to string, code int) error {
 		return err
 	}
 
-	return send(cfg, to, "Your Gomont verification code", plainBody, htmlBody)
+	// FIXED: Wrap the single string recipient into an inline string slice literal
+	return send(cfg, []string{to}, "Your Gomont verification code", plainBody, htmlBody)
 }
 
-// SendNotificationEmail alerts a user that one of their monitors went down.
-func SendNotificationEmail(cfg *config.Config, to, url, errMsg string, checkedAt time.Time) error {
+// SendNotificationEmail alerts multiple destination addresses that a monitor went down.
+func SendNotificationEmail(cfg *config.Config, to []string, url, errMsg string, checkedAt time.Time) error {
 	data := struct {
 		URL          string
 		Err          string

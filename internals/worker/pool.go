@@ -11,20 +11,21 @@ import (
 )
 
 type Pool struct {
-	Store  *store.URLStore
+	URLStore  *store.URLStore
+	NotificationChannelStore *store.NotificationChannelStore
 	Cfg    *config.Config
 	Broker *sse.Broker
 }
 
-func NewPool(s *store.URLStore, cfg *config.Config, broker *sse.Broker) *Pool {
-	return &Pool{Store: s, Cfg: cfg, Broker: broker}
+func NewPool(s *store.URLStore, ns *store.NotificationChannelStore, cfg *config.Config, broker *sse.Broker) *Pool {
+	return &Pool{URLStore: s, NotificationChannelStore: ns, Cfg: cfg, Broker: broker}
 }
 
 func (p *Pool) Start(jobCh <-chan core.URL) *sync.WaitGroup {
 	slog.Info("pool started...")
 	var wg sync.WaitGroup
 
-	w := &Worker{Store: p.Store, Cfg: p.Cfg, Broker: p.Broker}
+	w := &Worker{URLStore: p.URLStore,NotificationChannelStore: p.NotificationChannelStore, Cfg: p.Cfg, Broker: p.Broker}
 
 	for i := range 4 {
 		go func(id int) {

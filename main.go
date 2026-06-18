@@ -49,7 +49,7 @@ func main() {
 	broker := sse.NewBroker()
 
 	// Worker pool
-	pool := worker.NewPool(urlStore, cfg, broker)
+	pool := worker.NewPool(urlStore, notificationChannelStore, cfg, broker)
 	wg := pool.Start(jobCh)
 
 	// Producer

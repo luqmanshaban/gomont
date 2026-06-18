@@ -86,7 +86,7 @@ a {
 }
 
 .topbar {
-  border-bottom: 2px solid var(--border-strong);
+  /*border-bottom: 2px solid var(--border-strong);*/
   background: var(--surface);
 }
 
