@@ -1,10 +1,10 @@
 # Gomont
-<img width="1140" height="781" alt="image" src="https://github.com/user-attachments/assets/364a92b6-28af-4559-8c88-6d710352eec5" />
-
 
 An open-source uptime monitor written in Go. Add the URLs you care about, get notified by email the moment one goes down, and watch status update live on a clean, dependency-light dashboard.
 
 Gomont is built with a deliberate bias toward simplicity: a single Go binary, no JavaScript framework, no build step for the frontend, and a minimal set of external dependencies. The goal is that anyone comfortable with Go and vanilla HTML/CSS/JS can read the whole codebase in an afternoon.
+
+<img width="1140" height="781" alt="image" src="https://github.com/user-attachments/assets/cc6adcb6-f002-4408-bd07-00c001d92d0b" /> 
 
 ## Features
 
